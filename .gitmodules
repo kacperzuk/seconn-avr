@@ -1,0 +1,6 @@
+[submodule "libs/micro-ecc"]
+	path = ext-libs/micro-ecc
+	url = https://github.com/kmackay/micro-ecc
+[submodule "libs/avr-crypto-lib"]
+	path = ext-libs/avr-crypto-lib
+	url = https://git.cryptolib.org/avr-crypto-lib.git
