@@ -44,5 +44,6 @@ void seconn_init(SeConn *conn,
         int eeprom_offset);
 void seconn_new_data(SeConn *conn, const void *data, size_t bytes);
 void seconn_write_data(SeConn *conn, const void *source, size_t bytes);
+void seconn_get_public_key(SeConn *conn, uint8_t *public_key);
 
 #endif //SECONN_H

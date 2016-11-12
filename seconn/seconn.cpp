@@ -153,3 +153,7 @@ void seconn_write_data(SeConn *conn, const void *source, size_t bytes) {
     write_bytes(conn, conn->buffer, HEADER_LENGTH);
     write_bytes(conn, conn->buffer + HEADER_LENGTH, l);
 }
+
+void seconn_get_public_key(SeConn *conn, uint8_t *public_key) {
+    GetPubKey(public_key);
+}
