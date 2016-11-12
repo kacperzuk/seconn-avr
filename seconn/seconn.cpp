@@ -41,7 +41,10 @@ void seconn_init(SeConn *conn,
         int (*writeData)(void *src, size_t bytes),
         void (*onDataReceived)(void *src, size_t bytes),
         void (*onStateChange)(State prev_state, State cur_state),
+        int (*rng)(uint8_t *dest, unsigned size),
         int eeprom_offset) {
+
+    SetRng(rng);
 
     memset(conn, 0, sizeof(SeConn));
     conn->state = NEW;

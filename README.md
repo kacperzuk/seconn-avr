@@ -95,10 +95,13 @@ void c_seconn_state_changed(State prev, State cur) {
 }
 ```
 
-These callback cover receiving decrypted data in your app and sending raw data from SeConn to network. To transfer raw data from network to SeConn and to transfer data you want encrypted from your app to SeConn you'll have to use SeConn object:
+These callback cover receiving decrypted data in your app and sending raw data from SeConn to network. To transfer raw data from network to SeConn and to transfer data you want encrypted from your app to SeConn you'll have to use SeConn object. You also need a way to generate random bytes. If you're using arduino, you can use micro-library from arduino-rng directory in this repository.
 
 ```c++
 #include <seconn.h>
+
+// function that will write size bytes to dest
+int RNG(uint8_t *dest, unsigned size);
 
 struct SeConn seConn;
 
@@ -109,6 +112,7 @@ seconn_init(
     c_seconn_write_data,
     c_seconn_data_received,
     c_seconn_state_changed,
+    &RNG,
     eeprom_offset);
 
 // you can get your public key immediately, for example to show it to user for

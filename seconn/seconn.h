@@ -41,6 +41,7 @@ void seconn_init(SeConn *conn,
         int (*writeData)(void *src, size_t bytes),
         void (*onDataReceived)(void *src, size_t bytes),
         void (*onStateChange)(State prev_state, State cur_state),
+        int (*rng)(uint8_t *dest, unsigned size),
         int eeprom_offset);
 void seconn_new_data(SeConn *conn, const void *data, size_t bytes);
 void seconn_write_data(SeConn *conn, const void *source, size_t bytes);

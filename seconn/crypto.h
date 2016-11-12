@@ -13,6 +13,7 @@ typedef uint8_t aes128_key_t[128/8];
 
 void InitCrypto(int eeprom_offset);
 void InitCrypto();
+void SetRng(int (*rng)(uint8_t *dest, unsigned size));
 void GetPubKey(uint8_t *pubkey);
 void GetPrivKey(uint8_t *privkey);
 void GetSharedSecret(const pubkey_t other_pubkey, shared_secret_t *secret);

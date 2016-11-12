@@ -20,7 +20,7 @@ extern "C" {
 #include <aes.h>
 }
 
-#include <rng.h>
+int (*rng)(uint8_t *dest, unsigned size);
 
 struct {
     uint8_t version;
@@ -35,8 +35,6 @@ void InitCrypto() {
 }
 
 void InitCrypto(int eeprom_offset) {
-    uECC_set_rng(&RNG);
-
     curve = uECC_secp256r1();
 
     EEPROM.get(eeprom_offset, device_keypair);
@@ -45,6 +43,11 @@ void InitCrypto(int eeprom_offset) {
         device_keypair.version = 2;
         EEPROM.put(eeprom_offset, device_keypair);
     }
+}
+
+void SetRng(int (*_rng)(uint8_t *dest, unsigned size)) {
+    rng = _rng;
+    uECC_set_rng(_rng);
 }
 
 void GetPubKey(uint8_t *pubkey) {
@@ -90,7 +93,7 @@ size_t EncryptData(void *destination, void *source, size_t length, aes128_key_t 
     uint8_t *dest = (uint8_t*)destination;
     uint8_t *src = (uint8_t*)source;
 
-    RNG(dest, 16); // random first block
+    rng(dest, 16); // random first block
     memset(&ctx, 0, sizeof(aes128_ctx_t));
 
     aes128_init(enc_key, &ctx);
