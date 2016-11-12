@@ -74,7 +74,7 @@ void c_seconn_data_received(void *src, size_t bytes) {
     Serial.println("");
 }
 
-void c_seconn_state_changed(State prev, State cur) {
+void c_seconn_state_changed(seconn_state prev, seconn_state cur) {
     /*
      * This method is called when connection's state changes. Possible
      * values are:
@@ -104,12 +104,12 @@ These callback cover receiving decrypted data in your app and sending raw data f
 // function that will write size bytes to dest
 int RNG(uint8_t *dest, unsigned size);
 
-struct SeConn seConn;
+struct seconn sConn;
 
 // eeprom_offset says where in internal eeprom keys should be stored
 int eeprom_offset = 0;
 seconn_init(
-    &seConn,
+    &sConn,
     c_seconn_write_data,
     c_seconn_data_received,
     c_seconn_state_changed,
@@ -118,9 +118,9 @@ seconn_init(
 
 // you can get your public key immediately, for example to show it to user for
 // verification
-// do not confuse seconn_get_public_key() with seConn.public_key! see below.
+// do not confuse seconn_get_public_key() with sConn.public_key! see below.
 uint8_t public_key[64];
-seconn_get_public_key(&seConn, public_key);
+seconn_get_public_key(&sConn, public_key);
 Serial.print("My public key is: ");
 printHex(public_key, 64);
 Serial.println("");
@@ -128,7 +128,7 @@ Serial.println("");
 // after the state is AUTHENTICATED
 // passing data that should be encrypted and sent to other side:
 const char *data[] = "Hello from the other side!";
-seconn_write_data(&seConn, data, sizeof(data));
+seconn_write_data(&sConn, data, sizeof(data));
 
 // you can get the public key of the other side
 //
@@ -137,7 +137,7 @@ seconn_write_data(&seConn, data, sizeof(data));
 // key, not that key is trusted!
 
 Serial.print("Public key of the other side is: ");
-Serial.println(seConn.public_key);
+Serial.println(sConn.public_key);
 
 // passing data from network to SeConn
 while(Bluetooth.available()) {

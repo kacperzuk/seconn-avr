@@ -1,5 +1,5 @@
-#ifndef PROTO_H
-#define PROTO_H
+#ifndef SECONN_PROTO_H
+#define SECONN_PROTO_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -13,38 +13,41 @@
 #define MAX_DATA_FOR_ENCRYPTION MAX_PAYLOAD_LENGTH-16-1
 #define MAX_MESSAGE_SIZE MAX_PAYLOAD_LENGTH+HEADER_LENGTH
 
-enum MessageType {
+/*
+ * map frame name to the hex value that has to be embedded in frame
+ */
+enum _seconn_proto_message_type {
     HelloRequest = 0x00,
     HelloResponse = 0x01,
     EncryptedData = 0x02,
     MAX_MESSAGE_TYPE
 };
 
-struct HelloRequestPayload {
+struct _seconn_proto_hello_request_payload_t {
     uint8_t public_key[64];
 };
 
-struct HelloResponsePayload {
+struct _seconn_proto_hello_response_payload_t {
     uint8_t mac[16];
     uint8_t encrypted_public_key[96];
 };
 
-struct EncryptedDataPayload {
+struct _seconn_proto_encrypted_data_payload_t {
     uint8_t mac[16];
     uint8_t payload[MAX_PAYLOAD_LENGTH-16];
 };
 
-union AbstractPayload {
-    HelloRequestPayload hello_request;
-    HelloResponsePayload hello_response;
-    EncryptedDataPayload encrypted_data;
+union _seconn_proto_abstract_payload_t {
+    _seconn_proto_hello_request_payload_t hello_request;
+    _seconn_proto_hello_response_payload_t hello_response;
+    _seconn_proto_encrypted_data_payload_t encrypted_data;
 };
 
-struct Message {
+struct _seconn_proto_message_t {
     uint16_t protocol_version;
-    MessageType type;
+    _seconn_proto_message_type type;
     uint16_t payload_length;
-    AbstractPayload message;
+    _seconn_proto_abstract_payload_t message;
 };
 
 /*
@@ -54,7 +57,7 @@ struct Message {
  *
  * returns: header size
  */
-int CreateMessageHeader(void *destination, MessageType type, size_t len);
+int _seconn_proto_create_message_header(void *destination, _seconn_proto_message_type type, size_t len);
 
 /*
  * dest - where parsed message should be written
@@ -72,9 +75,9 @@ int CreateMessageHeader(void *destination, MessageType type, size_t len);
  *
  *
  * note: if lower layer protocol is streaming protocol, just pass first 5 bytes
- * of what you have and ParseMessage will return how much more bytes belong to
+ * of what you have and _seconn_proto_parse_message will return how much more bytes belong to
  * this single message
  */
-int ParseMessage(Message *dest, const void* source, size_t len, size_t *bytes_consumed);
+int _seconn_proto_parse_message(_seconn_proto_message_t *dest, const void* source, size_t len, size_t *bytes_consumed);
 
-#endif // PROTO_H
+#endif // SECONN_PROTO_H

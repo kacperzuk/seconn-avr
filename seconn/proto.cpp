@@ -2,7 +2,7 @@
 
 #include <string.h>
 
-int CreateMessageHeader(void *destination, MessageType type, size_t len) {
+int _seconn_proto_create_message_header(void *destination, _seconn_proto_message_type type, size_t len) {
     uint8_t *dest = (uint8_t*)destination;
 
     dest[0] = HIGH_BYTE(PROTOCOL_VERSION);
@@ -16,7 +16,7 @@ int CreateMessageHeader(void *destination, MessageType type, size_t len) {
     return len+5;
 }
 
-int ParseMessage(Message *dst, const void* source, size_t len, size_t *bytes_consumed) {
+int _seconn_proto_parse_message(_seconn_proto_message_t *dst, const void* source, size_t len, size_t *bytes_consumed) {
     uint8_t *src = (uint8_t*)source;
     uint8_t *payload = src+5;
 
@@ -33,7 +33,7 @@ int ParseMessage(Message *dst, const void* source, size_t len, size_t *bytes_con
     }
 
     dst->protocol_version = PROTOCOL_VERSION;
-    dst->type = (MessageType)src[2];
+    dst->type = (_seconn_proto_message_type)src[2];
     dst->payload_length = (src[3] << 8) | src[4];
 
     if (len < 5 + dst->payload_length) {

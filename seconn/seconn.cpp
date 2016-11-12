@@ -6,55 +6,55 @@
 #include "crypto.h"
 
 size_t written;
-void write_bytes(SeConn *conn, uint8_t *buffer, size_t bytes) {
+void write_bytes(struct seconn *conn, uint8_t *buffer, size_t bytes) {
     written = 0;
     while(written < bytes) {
         written += conn->writeData(buffer + written, bytes - written);
     }
 }
 
-void send_hello_request(SeConn *conn) {
+void send_hello_request(struct seconn *conn) {
     uint8_t *key = conn->msg.message.hello_request.public_key;
-    GetPubKey(key);
-    CreateMessageHeader(conn->buffer, HelloRequest, 64);
+    _seconn_crypto_get_public_key(key);
+    _seconn_proto_create_message_header(conn->buffer, HelloRequest, 64);
     write_bytes(conn, conn->buffer, HEADER_LENGTH);
     write_bytes(conn, key, 64);
 }
 
-void send_hello_response(SeConn *conn) {
+void send_hello_response(struct seconn *conn) {
     uint8_t *key = conn->msg.message.hello_request.public_key;
-    GetPubKey(key);
+    _seconn_crypto_get_public_key(key);
 
-    size_t l = EncryptThenMac(conn->buffer + HEADER_LENGTH, key, 64, conn->mac_key, conn->enc_key);
-    CreateMessageHeader(conn->buffer, HelloResponse, l);
+    size_t l = _seconn_crypto_encrypt_then_mac(conn->buffer + HEADER_LENGTH, key, 64, conn->mac_key, conn->enc_key);
+    _seconn_proto_create_message_header(conn->buffer, HelloResponse, l);
     write_bytes(conn, conn->buffer, HEADER_LENGTH);
     write_bytes(conn, conn->buffer + HEADER_LENGTH, l);
 }
 
-void change_state(SeConn *conn, State new_state) {
-    State prev_state = conn->state;
+void change_state(struct seconn *conn, seconn_state new_state) {
+    seconn_state prev_state = conn->state;
     conn->state = new_state;
     conn->onStateChange(prev_state, conn->state);
 }
 
-void seconn_init(SeConn *conn,
+void seconn_init(struct seconn *conn,
         int (*writeData)(void *src, size_t bytes),
         void (*onDataReceived)(void *src, size_t bytes),
-        void (*onStateChange)(State prev_state, State cur_state),
+        void (*onStateChange)(seconn_state prev_state, seconn_state cur_state),
         int (*rng)(uint8_t *dest, unsigned size),
         int eeprom_offset) {
 
-    SetRng(rng);
+    _seconn_crypto_set_rng(rng);
 
-    memset(conn, 0, sizeof(SeConn));
+    memset(conn, 0, sizeof(struct seconn));
     conn->state = NEW;
     conn->writeData = writeData;
     conn->onDataReceived = onDataReceived;
     conn->onStateChange = onStateChange;
-    InitCrypto(eeprom_offset);
+    _seconn_crypto_init(eeprom_offset);
 }
 
-void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
+void seconn_new_data(struct seconn *conn, const void *data, size_t bytes) {
     if(conn->state == SYNC_ERROR || conn->state == INVALID_HANDSHAKE) {
         return;
     }
@@ -74,7 +74,7 @@ void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
     conn->bytes_in_buffer += bytes;
 
     size_t bytes_consumed = 0;
-    int ret = ParseMessage(&(conn->msg), conn->buffer, conn->bytes_in_buffer, &bytes_consumed);
+    int ret = _seconn_proto_parse_message(&(conn->msg), conn->buffer, conn->bytes_in_buffer, &bytes_consumed);
     if (ret == -1 || ret > 0) {
         // we need more data
         if (conn->bytes_in_buffer == MAX_MESSAGE_SIZE) {
@@ -102,7 +102,7 @@ void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
 
     if (conn->msg.type == HelloRequest) {
         memcpy(conn->public_key, conn->msg.message.hello_request.public_key, sizeof(conn->public_key));
-        GetSharedSecret(conn->public_key, (shared_secret_t*)conn->buffer);
+        _seconn_crypto_calculate_shared_secret(conn->public_key, (shared_secret_t*)conn->buffer);
         memcpy(conn->enc_key, conn->buffer, 16);
         memcpy(conn->mac_key, conn->buffer + 16, 16);
         if (conn->state == NEW) {
@@ -110,12 +110,12 @@ void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
         }
         send_hello_response(conn);
     } else if (conn->msg.type == HelloResponse) {
-        struct HelloResponsePayload *payload = &(conn->msg.message.hello_response);
-        if(0 != CheckMac(payload->mac, payload->encrypted_public_key, sizeof(payload->encrypted_public_key), conn->mac_key)) {
+        struct _seconn_proto_hello_response_payload_t *payload = &(conn->msg.message.hello_response);
+        if(0 != _seconn_crypto_check_mac(payload->mac, payload->encrypted_public_key, sizeof(payload->encrypted_public_key), conn->mac_key)) {
             change_state(conn, INVALID_HANDSHAKE);
             return;
         }
-        size_t l = Decrypt(conn->buffer, payload->encrypted_public_key, sizeof(payload->encrypted_public_key), conn->enc_key);
+        size_t l = _seconn_crypto_decrypt(conn->buffer, payload->encrypted_public_key, sizeof(payload->encrypted_public_key), conn->enc_key);
         if (l != 64) {
             change_state(conn, INVALID_HANDSHAKE);
             return;
@@ -128,12 +128,12 @@ void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
 
         change_state(conn, AUTHENTICATED);
     } else if (conn->msg.type == EncryptedData) {
-        struct EncryptedDataPayload *payload = &(conn->msg.message.encrypted_data);
-        if(0 != CheckMac(payload->mac, payload->payload, conn->msg.payload_length-16, conn->mac_key)) {
+        struct _seconn_proto_encrypted_data_payload_t *payload = &(conn->msg.message.encrypted_data);
+        if(0 != _seconn_crypto_check_mac(payload->mac, payload->payload, conn->msg.payload_length-16, conn->mac_key)) {
             change_state(conn, SYNC_ERROR);
             return;
         }
-        size_t l = Decrypt(conn->buffer, payload->payload, conn->msg.payload_length-16, conn->enc_key);
+        size_t l = _seconn_crypto_decrypt(conn->buffer, payload->payload, conn->msg.payload_length-16, conn->enc_key);
         if (l > MAX_MESSAGE_SIZE) {
             // FIXME that's bad, our memory is currupted already
             change_state(conn, SYNC_ERROR);
@@ -150,13 +150,13 @@ void seconn_new_data(SeConn *conn, const void *data, size_t bytes) {
     }
 }
 
-void seconn_write_data(SeConn *conn, const void *source, size_t bytes) {
-    size_t l = EncryptThenMac(conn->buffer + HEADER_LENGTH, (void*)source, bytes, conn->mac_key, conn->enc_key);
-    CreateMessageHeader(conn->buffer, EncryptedData, l);
+void seconn_write_data(struct seconn *conn, const void *source, size_t bytes) {
+    size_t l = _seconn_crypto_encrypt_then_mac(conn->buffer + HEADER_LENGTH, (void*)source, bytes, conn->mac_key, conn->enc_key);
+    _seconn_proto_create_message_header(conn->buffer, EncryptedData, l);
     write_bytes(conn, conn->buffer, HEADER_LENGTH);
     write_bytes(conn, conn->buffer + HEADER_LENGTH, l);
 }
 
-void seconn_get_public_key(SeConn *conn, uint8_t *public_key) {
-    GetPubKey(public_key);
+void seconn_get_public_key(struct seconn *conn, uint8_t *public_key) {
+    _seconn_crypto_get_public_key(public_key);
 }
