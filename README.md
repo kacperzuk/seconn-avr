@@ -142,6 +142,6 @@ Serial.println(sConn.public_key);
 // passing data from network to SeConn
 while(Bluetooth.available()) {
     char c = Bluetooth.read();
-    seconn_new_data(&seconn, &c, 1);
+    seconn_new_data(&sConn, &c, 1);
 }
 ```
